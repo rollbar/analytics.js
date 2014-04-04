@@ -829,17 +829,14 @@ require.register("component-trim/index.js", function(exports, require, module){
 exports = module.exports = trim;
 
 function trim(str){
-  if (str.trim) return str.trim();
   return str.replace(/^\s*|\s*$/g, '');
 }
 
 exports.left = function(str){
-  if (str.trimLeft) return str.trimLeft();
   return str.replace(/^\s*/, '');
 };
 
 exports.right = function(str){
-  if (str.trimRight) return str.trimRight();
   return str.replace(/\s*$/, '');
 };
 
@@ -964,6 +961,7 @@ exports.isCrossDomain = function(url){
 };
 });
 require.register("component-bind/index.js", function(exports, require, module){
+
 /**
  * Slice reference.
  */
@@ -982,7 +980,7 @@ var slice = [].slice;
 module.exports = function(obj, fn){
   if ('string' == typeof fn) fn = obj[fn];
   if ('function' != typeof fn) throw new Error('bind() requires a function');
-  var args = slice.call(arguments, 2);
+  var args = [].slice.call(arguments, 2);
   return function(){
     return fn.apply(obj, args.concat(slice.call(arguments)));
   }
@@ -991,13 +989,9 @@ module.exports = function(obj, fn){
 });
 require.register("segmentio-bind-all/index.js", function(exports, require, module){
 
-try {
-  var bind = require('bind');
-  var type = require('type');
-} catch (e) {
-  var bind = require('bind-component');
-  var type = require('type-component');
-}
+var bind   = require('bind')
+  , type   = require('type');
+
 
 module.exports = function (obj) {
   for (var key in obj) {
@@ -1773,12 +1767,13 @@ var global = (function(){ return this })();
 
 module.exports = function(fn) {
   var id = n++;
+  var called;
 
   function once(){
     // no receiver
     if (this == global) {
-      if (once.called) return;
-      once.called = true;
+      if (called) return;
+      called = true;
       return fn.apply(this, arguments);
     }
 
@@ -1795,77 +1790,20 @@ module.exports = function(fn) {
 });
 require.register("segmentio-alias/index.js", function(exports, require, module){
 
-var type = require('type');
-
-try {
-  var clone = require('clone');
-} catch (e) {
-  var clone = require('clone-component');
-}
-
-
-/**
- * Expose `alias`.
- */
-
-module.exports = alias;
-
-
-/**
- * Alias an `object`.
- *
- * @param {Object} obj
- * @param {Mixed} method
- */
-
-function alias (obj, method) {
-  switch (type(method)) {
-    case 'object': return aliasByDictionary(clone(obj), method);
-    case 'function': return aliasByFunction(clone(obj), method);
-  }
-}
-
-
-/**
- * Convert the keys in an `obj` using a dictionary of `aliases`.
- *
- * @param {Object} obj
- * @param {Object} aliases
- */
-
-function aliasByDictionary (obj, aliases) {
-  for (var key in aliases) {
-    if (undefined === obj[key]) continue;
-    obj[aliases[key]] = obj[key];
-    delete obj[key];
-  }
-  return obj;
-}
-
-
-/**
- * Convert the keys in an `obj` using a `convert` function.
- *
- * @param {Object} obj
- * @param {Function} convert
- */
-
-function aliasByFunction (obj, convert) {
-  // have to create another object so that ie8 won't infinite loop on keys
-  var output = {};
-  for (var key in obj) output[convert(key)] = obj[key];
-  return output;
-}
+module.exports = function alias (object, aliases) {
+    // For each of our aliases, rename our object's keys.
+    for (var oldKey in aliases) {
+        var newKey = aliases[oldKey];
+        if (object[oldKey] !== undefined) {
+            object[newKey] = object[oldKey];
+            delete object[oldKey];
+        }
+    }
+};
 });
 require.register("segmentio-convert-dates/index.js", function(exports, require, module){
 
 var is = require('is');
-
-try {
-  var clone = require('clone');
-} catch (e) {
-  var clone = require('clone-component');
-}
 
 
 /**
@@ -1884,13 +1822,11 @@ module.exports = convertDates;
  */
 
 function convertDates (obj, convert) {
-  obj = clone(obj);
   for (var key in obj) {
     var val = obj[key];
     if (is.date(val)) obj[key] = convert(val);
-    if (is.object(val)) obj[key] = convertDates(val, convert);
+    if (is.object(val)) convertDates(val, convert);
   }
-  return obj;
 }
 });
 require.register("segmentio-global-queue/index.js", function(exports, require, module){
@@ -1979,17 +1915,10 @@ module.exports = function loadScript (options, callback) {
     // https://github.com/thirdpartyjs/thirdpartyjs-code/blob/master/examples/templates/02/loading-files/index.html
     if (callback && type(callback) === 'function') {
         if (script.addEventListener) {
-            script.addEventListener('load', function (event) {
-                callback(null, event);
-            }, false);
-            script.addEventListener('error', function (event) {
-                callback(new Error('Failed to load the script.'), event);
-            }, false);
+            script.addEventListener('load', callback, false);
         } else if (script.attachEvent) {
-            script.attachEvent('onreadystatechange', function (event) {
-                if (/complete|loaded/.test(script.readyState)) {
-                    callback(null, event);
-                }
+            script.attachEvent('onreadystatechange', function () {
+                if (/complete|loaded/.test(script.readyState)) callback();
             });
         }
     }
@@ -2583,7 +2512,7 @@ function recreate(script){
   return ret;
 }
 });
-require.register("segmentio-analytics.js-integrations/index.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/index.js", function(exports, require, module){
 
 var integrations = require('./lib/slugs');
 var each = require('each');
@@ -2599,7 +2528,7 @@ each(integrations, function (slug) {
 });
 
 });
-require.register("segmentio-analytics.js-integrations/lib/adroll.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/adroll.js", function(exports, require, module){
 
 var integration = require('integration');
 var is = require('is');
@@ -2680,7 +2609,7 @@ AdRoll.prototype.load = function (callback) {
   }, callback);
 };
 });
-require.register("segmentio-analytics.js-integrations/lib/adwords.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/adwords.js", function(exports, require, module){
 
 var onbody = require('on-body');
 var integration = require('integration');
@@ -2802,7 +2731,7 @@ AdWords.prototype.wait = function(obj){
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/alexa.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/alexa.js", function(exports, require, module){
 
 var integration = require('integration');
 var load = require('load-script');
@@ -2867,7 +2796,7 @@ Alexa.prototype.load = function (callback) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/amplitude.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/amplitude.js", function(exports, require, module){
 
 var callback = require('callback');
 var integration = require('integration');
@@ -2990,7 +2919,7 @@ Amplitude.prototype.track = function (track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/awesm.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/awesm.js", function(exports, require, module){
 
 var integration = require('integration');
 var load = require('load-script');
@@ -3077,7 +3006,7 @@ Awesm.prototype.track = function (track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/awesomatic.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/awesomatic.js", function(exports, require, module){
 
 var integration = require('integration');
 var is = require('is');
@@ -3160,7 +3089,7 @@ Awesomatic.prototype.load = function (callback) {
   load(url, callback);
 };
 });
-require.register("segmentio-analytics.js-integrations/lib/bing-ads.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/bing-ads.js", function(exports, require, module){
 
 
 var integration = require('integration');
@@ -3229,7 +3158,7 @@ exports.load = function(goal, revenue, options){
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/bronto.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/bronto.js", function(exports, require, module){
 
 /**
  * Module dependencies.
@@ -3344,7 +3273,7 @@ Bronto.prototype.completedOrder = function(track){
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/bugherd.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/bugherd.js", function(exports, require, module){
 
 var integration = require('integration');
 var load = require('load-script');
@@ -3407,7 +3336,7 @@ BugHerd.prototype.load = function (callback) {
   load('//www.bugherd.com/sidebarv2.js?apikey=' + this.options.apiKey, callback);
 };
 });
-require.register("segmentio-analytics.js-integrations/lib/bugsnag.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/bugsnag.js", function(exports, require, module){
 
 var integration = require('integration');
 var is = require('is');
@@ -3487,7 +3416,7 @@ Bugsnag.prototype.identify = function (identify) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/chartbeat.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/chartbeat.js", function(exports, require, module){
 
 var integration = require('integration');
 var onBody = require('on-body');
@@ -3576,7 +3505,7 @@ Chartbeat.prototype.page = function (page) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/churnbee.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/churnbee.js", function(exports, require, module){
 
 /**
  * Module dependencies.
@@ -3673,7 +3602,7 @@ ChurnBee.prototype.track = function(track){
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/clicktale.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/clicktale.js", function(exports, require, module){
 
 var date = require('load-date');
 var domify = require('domify');
@@ -3791,7 +3720,7 @@ ClickTale.prototype.track = function (track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/clicky.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/clicky.js", function(exports, require, module){
 
 var Identify = require('facade').Identify;
 var extend = require('extend');
@@ -3912,7 +3841,7 @@ Clicky.prototype.track = function (track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/comscore.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/comscore.js", function(exports, require, module){
 
 var integration = require('integration');
 var load = require('load-script');
@@ -3976,7 +3905,7 @@ Comscore.prototype.load = function (callback) {
   }, callback);
 };
 });
-require.register("segmentio-analytics.js-integrations/lib/crazy-egg.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/crazy-egg.js", function(exports, require, module){
 
 var integration = require('integration');
 var load = require('load-script');
@@ -4038,7 +3967,7 @@ CrazyEgg.prototype.load = function (callback) {
   load(url, callback);
 };
 });
-require.register("segmentio-analytics.js-integrations/lib/curebit.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/curebit.js", function(exports, require, module){
 
 var push = require('global-queue')('_curebitq');
 var replace = require('replace-document-write');
@@ -4272,7 +4201,7 @@ Curebit.prototype.completedOrder = function(track){
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/customerio.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/customerio.js", function(exports, require, module){
 
 var alias = require('alias');
 var callback = require('callback');
@@ -4412,7 +4341,7 @@ function convertDate (date) {
 }
 
 });
-require.register("segmentio-analytics.js-integrations/lib/drip.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/drip.js", function(exports, require, module){
 
 var alias = require('alias');
 var integration = require('integration');
@@ -4495,7 +4424,7 @@ Drip.prototype.track = function (track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/errorception.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/errorception.js", function(exports, require, module){
 
 var callback = require('callback');
 var extend = require('extend');
@@ -4580,7 +4509,7 @@ Errorception.prototype.identify = function (identify) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/evergage.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/evergage.js", function(exports, require, module){
 
 var each = require('each');
 var integration = require('integration');
@@ -4726,7 +4655,7 @@ Evergage.prototype.track = function (track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/facebook-ads.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/facebook-ads.js", function(exports, require, module){
 
 var load = require('load-pixel')('//www.facebook.com/offsite_event.php');
 var integration = require('integration');
@@ -4779,7 +4708,7 @@ Facebook.prototype.track = function(track){
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/foxmetrics.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/foxmetrics.js", function(exports, require, module){
 
 var push = require('global-queue')('_fxm');
 var integration = require('integration');
@@ -4994,7 +4923,7 @@ function ecommerce(event, track, arr){
 
 
 });
-require.register("segmentio-analytics.js-integrations/lib/gauges.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/gauges.js", function(exports, require, module){
 
 var callback = require('callback');
 var integration = require('integration');
@@ -5072,7 +5001,7 @@ Gauges.prototype.page = function (page) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/get-satisfaction.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/get-satisfaction.js", function(exports, require, module){
 
 var integration = require('integration');
 var load = require('load-script');
@@ -5141,7 +5070,7 @@ GetSatisfaction.prototype.load = function (callback) {
   load('https://loader.engage.gsfn.us/loader.js', callback);
 };
 });
-require.register("segmentio-analytics.js-integrations/lib/google-analytics.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/google-analytics.js", function(exports, require, module){
 
 var callback = require('callback');
 var canonical = require('canonical');
@@ -5568,7 +5497,7 @@ function formatValue (value) {
 }
 
 });
-require.register("segmentio-analytics.js-integrations/lib/google-tag-manager.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/google-tag-manager.js", function(exports, require, module){
 
 var push = require('global-queue')('dataLayer', { wrap: false });
 var integration = require('integration');
@@ -5675,7 +5604,7 @@ GTM.prototype.track = function(track){
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/gosquared.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/gosquared.js", function(exports, require, module){
 
 var Identify = require('facade').Identify;
 var Track = require('facade').Track;
@@ -5859,7 +5788,7 @@ function push(){
 }
 
 });
-require.register("segmentio-analytics.js-integrations/lib/heap.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/heap.js", function(exports, require, module){
 
 var alias = require('alias');
 var callback = require('callback');
@@ -5957,7 +5886,7 @@ Heap.prototype.track = function (track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/hellobar.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/hellobar.js", function(exports, require, module){
 
 var integration = require('integration');
 var load = require('load-script');
@@ -6021,7 +5950,7 @@ Hellobar.prototype.loaded = function () {
 
 
 });
-require.register("segmentio-analytics.js-integrations/lib/hittail.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/hittail.js", function(exports, require, module){
 
 var integration = require('integration');
 var is = require('is');
@@ -6081,7 +6010,7 @@ HitTail.prototype.load = function (callback) {
   load('//' + id + '.hittail.com/mlt.js', callback);
 };
 });
-require.register("segmentio-analytics.js-integrations/lib/hubspot.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/hubspot.js", function(exports, require, module){
 
 var callback = require('callback');
 var convert = require('convert-dates');
@@ -6202,7 +6131,7 @@ function convertDates (properties) {
 }
 
 });
-require.register("segmentio-analytics.js-integrations/lib/improvely.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/improvely.js", function(exports, require, module){
 
 var alias = require('alias');
 var callback = require('callback');
@@ -6303,7 +6232,7 @@ Improvely.prototype.track = function (track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/inspectlet.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/inspectlet.js", function(exports, require, module){
 
 var integration = require('integration');
 var alias = require('alias');
@@ -6382,7 +6311,7 @@ Inspectlet.prototype.track = function (track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/intercom.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/intercom.js", function(exports, require, module){
 
 var alias = require('alias');
 var convertDates = require('convert-dates');
@@ -6540,7 +6469,7 @@ function formatDate (date) {
 }
 
 });
-require.register("segmentio-analytics.js-integrations/lib/keen-io.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/keen-io.js", function(exports, require, module){
 
 var callback = require('callback');
 var integration = require('integration');
@@ -6671,7 +6600,168 @@ Keen.prototype.track = function (track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/kissmetrics.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/kenshoo.js", function(exports, require, module){
+
+var integration = require('integration');
+var load = require('load-script');
+var is = require('is');
+
+/**
+ * Expose plugin.
+ */
+
+module.exports = exports = function (analytics) {
+  analytics.addIntegration(Kenshoo);
+};
+
+
+/**
+ * Expose `Kenshoo` integration.
+ */
+
+var Kenshoo = exports.Integration = integration('Kenshoo')
+  .readyOnLoad()
+  .global('k_trackevent')
+  .option('cid', '')
+  .option('subdomain', '')
+  .option('trackNamedPages', true)
+  .option('trackCategorizedPages', true);
+
+
+
+/**
+ * Initialize.
+ *
+ * See https://gist.github.com/justinboyle/7875832
+ *
+ * @param {Object} page
+ */
+
+Kenshoo.prototype.initialize = function(page) {
+  this.load();
+};
+
+
+/**
+ * Loaded? (checks if the tracking function is set)
+ *
+ * @return {Boolean}
+ */
+
+Kenshoo.prototype.loaded = function() {
+  return is.function(window.k_trackevent);
+};
+
+
+/**
+ * Load Kenshoo script.
+ *
+ * @param {Function} callback
+ */
+
+Kenshoo.prototype.load = function(callback) {
+  var url = "//" + this.options.subdomain +
+    ".xg4ken.com/media/getpx.php?cid=" + this.options.cid;
+  load(url, callback);
+};
+
+
+/**
+ * Completed order.
+ *
+ * https://github.com/jorgegorka/the_tracker/blob/master/lib/the_tracker/trackers/kenshoo.rb
+ *
+ *
+ * @param {Track} track
+ * @api private
+ */
+
+Kenshoo.prototype.completedOrder = function(track) {
+  this._track(track, {val: track.total()});
+};
+
+
+/**
+ * Page.
+ *
+ * @param {Page} page
+ */
+
+Kenshoo.prototype.page = function(page) {
+  var category = page.category();
+  var name = page.name();
+  var fullName = page.fullName();
+  var isNamed = (name && this.options.trackNamedPages);
+  var isCategorized = (category && this.options.trackCategorizedPages);
+  var track;
+
+  if (name && ! this.options.trackNamedPages) {
+    return;
+  }
+
+  if (category && ! this.options.trackCategorizedPages) {
+    return;
+  }
+
+  if (isNamed && isCategorized) {
+    track = page.track(fullName);
+  } else if (isNamed) {
+    track = page.track(name);
+  } else if (isCategorized) {
+    track = page.track(category);
+  } else {
+    track = page.track();
+  }
+
+  this._track(track);
+};
+
+
+/**
+ * Track.
+ *
+ * https://github.com/jorgegorka/the_tracker/blob/master/lib/the_tracker/trackers/kenshoo.rb
+ *
+ * @param {Track} event
+ */
+
+Kenshoo.prototype.track = function(track) {
+  this._track(track);
+};
+
+
+
+/**
+ * Track a Kenshoo event.
+ *
+ * Private method for sending an event. We use it because `completedOrder`
+ * can't call track directly (would result in an infinite loop).
+ *
+ * @param {track} event
+ * @param {options} object
+ */
+
+Kenshoo.prototype._track = function(track, options) {
+  options = options || { val: track.revenue() };
+
+  var params = [
+    "id=" + this.options.cid,
+    "type=" + track.event(),
+    "val=" + (options.val || '0.0'),
+    "orderId=" + (track.orderId() || ''),
+    "promoCode=" + (track.coupon() || ''),
+    "valueCurrency=" + (track.currency() || ''),
+
+    // Live tracking fields. Ignored for now (until we get documentation).
+    "GCID=",
+    "kw=",
+    "product="
+  ];
+  window.k_trackevent(params, this.options.subdomain);
+};
+
+});
+require.register("rollbar-analytics.js-integrations/lib/kissmetrics.js", function(exports, require, module){
 
 var alias = require('alias');
 var Batch = require('batch');
@@ -6883,7 +6973,7 @@ function toProduct(track){
 }
 
 });
-require.register("segmentio-analytics.js-integrations/lib/klaviyo.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/klaviyo.js", function(exports, require, module){
 
 var alias = require('alias');
 var callback = require('callback');
@@ -6999,7 +7089,7 @@ Klaviyo.prototype.track = function (track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/leadlander.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/leadlander.js", function(exports, require, module){
 
 var integration = require('integration');
 var load = require('load-script');
@@ -7059,7 +7149,7 @@ LeadLander.prototype.load = function (callback) {
   load('http://t6.trackalyzer.com/trackalyze-nodoc.js', callback);
 };
 });
-require.register("segmentio-analytics.js-integrations/lib/livechat.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/livechat.js", function(exports, require, module){
 
 var each = require('each');
 var integration = require('integration');
@@ -7158,7 +7248,7 @@ function convert (traits) {
 }
 
 });
-require.register("segmentio-analytics.js-integrations/lib/lucky-orange.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/lucky-orange.js", function(exports, require, module){
 
 var Identify = require('facade').Identify;
 var integration = require('integration');
@@ -7253,7 +7343,7 @@ LuckyOrange.prototype.identify = function (identify) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/lytics.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/lytics.js", function(exports, require, module){
 
 var alias = require('alias');
 var callback = require('callback');
@@ -7368,7 +7458,7 @@ Lytics.prototype.track = function (track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/mixpanel.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/mixpanel.js", function(exports, require, module){
 
 var alias = require('alias');
 var clone = require('clone');
@@ -7568,7 +7658,7 @@ Mixpanel.prototype.alias = function (alias) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/mojn.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/mojn.js", function(exports, require, module){
 
 /**
  * Module dependencies.
@@ -7661,7 +7751,7 @@ Mojn.prototype.track = function(track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/mouseflow.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/mouseflow.js", function(exports, require, module){
 
 var push = require('global-queue')('_mfq');
 var integration = require('integration');
@@ -7773,7 +7863,7 @@ function set(hash){
 }
 
 });
-require.register("segmentio-analytics.js-integrations/lib/mousestats.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/mousestats.js", function(exports, require, module){
 
 var each = require('each');
 var integration = require('integration');
@@ -7857,7 +7947,84 @@ MouseStats.prototype.identify = function (identify) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/olark.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/navilytics.js", function(exports, require, module){
+
+/**
+ * Module dependencies.
+ */
+
+var integration = require('integration');
+var load = require('load-script');
+var push = require('global-queue')('__nls');
+
+/**
+ * Expose plugin.
+ */
+
+module.exports = exports = function (analytics) {
+  analytics.addIntegration(Navilytics);
+};
+
+/**
+ * Expose `Navilytics` integration.
+ */
+
+var Navilytics = exports.Integration = integration('Navilytics')
+  .assumesPageview()
+  .readyOnLoad()
+  .global('__nls')
+  .option('mid', '')
+  .option('pid', '');
+
+/**
+ * Initialize.
+ *
+ * https://www.navilytics.com/member/code_settings
+ *
+ * @param {Object} page
+ */
+
+Navilytics.prototype.initialize = function (page) {
+  this.load();
+};
+
+/**
+ * Loaded?
+ *
+ * @return {Boolean}
+ */
+
+Navilytics.prototype.loaded = function () {
+  return !! (window.__nls && [].push != window.__nls.push);
+};
+
+/**
+ * Load the Navilytics library.
+ *
+ * @param {Function} callback
+ */
+
+Navilytics.prototype.load = function (callback) {
+  var mid = this.options.mid;
+  var pid = this.options.pid;
+  var url = '//www.navilytics.com/nls.js?mid=' + mid + '&pid=' + pid;
+  load(url, callback);
+};
+
+/**
+ * Track.
+ *
+ * https://www.navilytics.com/docs#tags
+ *
+ * @param {Track} track
+ */
+
+Navilytics.prototype.track = function (track) {
+  push('tagRecording', track.event());
+};
+
+});
+require.register("rollbar-analytics.js-integrations/lib/olark.js", function(exports, require, module){
 
 var callback = require('callback');
 var integration = require('integration');
@@ -8012,7 +8179,7 @@ function chat (action, value) {
 }
 
 });
-require.register("segmentio-analytics.js-integrations/lib/optimizely.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/optimizely.js", function(exports, require, module){
 
 var bind = require('bind');
 var callback = require('callback');
@@ -8126,7 +8293,7 @@ Optimizely.prototype.replay = function () {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/perfect-audience.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/perfect-audience.js", function(exports, require, module){
 
 var integration = require('integration');
 var load = require('load-script');
@@ -8200,7 +8367,7 @@ PerfectAudience.prototype.track = function (track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/pingdom.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/pingdom.js", function(exports, require, module){
 
 var date = require('load-date');
 var integration = require('integration');
@@ -8263,7 +8430,7 @@ Pingdom.prototype.load = function (callback) {
   load('//rum-static.pingdom.net/prum.min.js', callback);
 };
 });
-require.register("segmentio-analytics.js-integrations/lib/preact.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/preact.js", function(exports, require, module){
 
 var alias = require('alias');
 var callback = require('callback');
@@ -8401,7 +8568,7 @@ function convertDate (date) {
 }
 
 });
-require.register("segmentio-analytics.js-integrations/lib/qualaroo.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/qualaroo.js", function(exports, require, module){
 
 var callback = require('callback');
 var integration = require('integration');
@@ -8505,7 +8672,7 @@ Qualaroo.prototype.track = function (track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/quantcast.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/quantcast.js", function(exports, require, module){
 
 var integration = require('integration');
 var load = require('load-script');
@@ -8598,8 +8765,11 @@ Quantcast.prototype.load = function (callback) {
  */
 
 Quantcast.prototype.page = function (page) {
+  var category = page.category();
+  var name = page.name();
   var settings = {
     event: 'refresh',
+    labels: labels('Page', category, name),
     qacct: this.options.pCode,
   };
   if (user.id()) settings.uid = user.id();
@@ -8631,31 +8801,73 @@ Quantcast.prototype.identify = function (identify) {
  */
 
 Quantcast.prototype.track = function (track) {
+  var name = track.event();
+  var revenue = track.revenue();
   var settings = {
     event: 'click',
+    labels: labels('Event', name),
     qacct: this.options.pCode
   };
+  if (revenue !== null) settings.revenue = (revenue+''); // convert to string
   if (user.id()) settings.uid = user.id();
   push(settings);
 };
 
+
+/**
+ * Completed Order.
+ * 
+ * @param {Track} track
+ * @api private
+ */
+
+Quantcast.prototype.completedOrder = function(track){
+  var name = track.event();
+  var revenue = track.total();
+  var settings = {
+    event: 'refresh', // the example Quantcast sent has completed order send refresh not click
+    labels: labels('Event', name),
+    revenue: (revenue+''), // convert to string
+    orderid: track.orderId(),
+    qacct: this.options.pCode
+  };
+  push(settings);
+};
+
+/**
+ * Generate a period-separated label string in Quantcast's style.
+ *
+ * @param {String} label 
+ * @param {String} label2
+ * ....
+ */
+
+function labels() {
+  var args = [];
+  for (var i = 0; i < arguments.length; i++) {
+    args.push(arguments[i]);
+  }
+  if (args.length === 0) return '';
+  var basic = args.filter(function(arg) {
+    return arg;
+  }).map(function(arg) {
+    return arg.replace(/,/g, ';');
+  }).join('.');
+  return [basic, ['_fp', basic].join('.')].join(',');
+}
+
 });
-require.register("segmentio-analytics.js-integrations/lib/rollbar.js", function(exports, require, module){
-
-var callback = require('callback');
-var clone = require('clone');
-var extend = require('extend');
+require.register("rollbar-analytics.js-integrations/lib/rollbar.js", function(exports, require, module){
 var integration = require('integration');
-var load = require('load-script');
-var onError = require('on-error');
-
+var is = require('is');
+var extend = require('extend');
 
 /**
  * Expose plugin.
  */
 
-module.exports = exports = function (analytics) {
-  analytics.addIntegration(Rollbar);
+module.exports = exports = function(analytics) {
+  analytics.addIntegration(RollbarIntegration);
 };
 
 
@@ -8663,27 +8875,39 @@ module.exports = exports = function (analytics) {
  * Expose `Rollbar` integration.
  */
 
-var Rollbar = exports.Integration = integration('Rollbar')
+var RollbarIntegration = exports.Integration = integration('Rollbar')
   .readyOnInitialize()
-  .assumesPageview()
-  .global('_rollbar')
+  .global('Rollbar')
+  .option('identify', true)
   .option('accessToken', '')
-  .option('identify', true);
+  .option('environment', 'unknown')
+  .option('captureUncaught', true);
 
 
 /**
  * Initialize.
  *
- * https://rollbar.com/docs/notifier/rollbar.js/
- *
  * @param {Object} page
  */
+RollbarIntegration.prototype.initialize = function(page) {
+  if (!this.loaded()) {
+    var options = this.options;
 
-Rollbar.prototype.initialize = function (page) {
-  var options = this.options;
-  window._rollbar = window._rollbar || window._ratchet || [options.accessToken, options];
-  onError(function() { window._rollbar.push.apply(window._rollbar, arguments); });
-  this.load();
+    var _rollbarConfig = {
+      accessToken: options.accessToken,
+      captureUncaught: options.captureUncaught,
+      payload: {
+        environment: options.environment
+      }
+    };
+    this._rollbarConfig = _rollbarConfig;
+
+  !function(a){function b(b){this.shimId=++g,this.notifier=null,this.parentShim=b,this.logger=function(){},a.console&&void 0===a.console.shimId&&(this.logger=a.console.log)}function c(b,c,d){!d[4]&&a._rollbarWrappedError&&(d[4]=a._rollbarWrappedError,a._rollbarWrappedError=null),b.uncaughtError.apply(b,d),c&&c.apply(a,d)}function d(c){var d=b;return f(function(){if(this.notifier)return this.notifier[c].apply(this.notifier,arguments);var b=this,e="scope"===c;e&&(b=new d(this));var f=Array.prototype.slice.call(arguments,0),g={shim:b,method:c,args:f,ts:new Date};return a._rollbarShimQueue.push(g),e?b:void 0})}function e(a,b){if(b.hasOwnProperty&&b.hasOwnProperty("addEventListener")){var c=b.addEventListener;b.addEventListener=function(b,d,e){c.call(this,b,a.wrap(d),e)};var d=b.removeEventListener;b.removeEventListener=function(a,b,c){d.call(this,a,b._wrapped||b,c)}}}function f(a,b){return b=b||this.logger,function(){try{return a.apply(this,arguments)}catch(c){b("Rollbar internal error:",c)}}}var g=0;b.init=function(a,d){var g=d.globalAlias||"Rollbar";if("object"==typeof a[g])return a[g];a._rollbarShimQueue=[],a._rollbarWrappedError=null,d=d||{};var h=new b;return f(function(){if(h.configure(d),d.captureUncaught){var b=a.onerror;a.onerror=function(){var a=Array.prototype.slice.call(arguments,0);c(h,b,a)};var f,i,j=["EventTarget","Window","Node","ApplicationCache","AudioTrackList","ChannelMergerNode","CryptoOperation","EventSource","FileReader","HTMLUnknownElement","IDBDatabase","IDBRequest","IDBTransaction","KeyOperation","MediaController","MessagePort","ModalWindow","Notification","SVGElementInstance","Screen","TextTrack","TextTrackCue","TextTrackList","WebSocket","WebSocketWorker","Worker","XMLHttpRequest","XMLHttpRequestEventTarget","XMLHttpRequestUpload"];for(f=0;f<j.length;++f)i=j[f],a[i]&&a[i].prototype&&e(h,a[i].prototype)}return a[g]=h,h},h.logger)()},b.prototype.loadFull=function(a,b,c,d,e){var g=f(function(){var a=b.createElement("script"),e=b.getElementsByTagName("script")[0];a.src=d.rollbarJsUrl,a.async=!c,a.onload=h,e.parentNode.insertBefore(a,e)},this.logger),h=f(function(){var b;if(void 0===a._rollbarPayloadQueue){var c,d,f,g;for(b=new Error("rollbar.js did not load");c=a._rollbarShimQueue.shift();)for(f=c.args,g=0;g<f.length;++g)if(d=f[g],"function"==typeof d){d(b);break}}e&&e(b)},this.logger);f(function(){c?g():a.addEventListener?a.addEventListener("load",g,!1):a.attachEvent("onload",g)},this.logger)()},b.prototype.wrap=function(b){if("function"!=typeof b)return b;if(b._isWrap)return b;if(!b._wrapped){b._wrapped=function(){try{return b.apply(this,arguments)}catch(c){throw a._rollbarWrappedError=c,c}},b._wrapped._isWrap=!0;for(var c in b)b.hasOwnProperty(c)&&(b._wrapped[c]=b[c])}return b._wrapped};for(var h="log,debug,info,warn,warning,error,critical,global,configure,scope,uncaughtError".split(","),i=0;i<h.length;++i)b.prototype[h[i]]=d(h[i]);var j="//d37gvrvc0wt4s1.cloudfront.net/js/v1.0/rollbar.min.js";_rollbarConfig.rollbarJsUrl=_rollbarConfig.rollbarJsUrl||j,b.init(a,_rollbarConfig)}(window,document);
+
+
+    // Call loadFull();
+    this.load();
+  }
 };
 
 
@@ -8693,8 +8917,9 @@ Rollbar.prototype.initialize = function (page) {
  * @return {Boolean}
  */
 
-Rollbar.prototype.loaded = function () {
-  return !! (window._rollbar && window._rollbar.push !== Array.prototype.push);
+RollbarIntegration.prototype.loaded = function() {
+  // The notifier is loaded right away as far as Segment.io is concerned
+  return is.object(window.Rollbar) && window.Rollbar.shimId === undefined;
 };
 
 
@@ -8704,32 +8929,32 @@ Rollbar.prototype.loaded = function () {
  * @param {Function} callback
  */
 
-Rollbar.prototype.load = function (callback) {
-  load('//d37gvrvc0wt4s1.cloudfront.net/js/1/rollbar.min.js', callback);
+RollbarIntegration.prototype.load = function(callback) {
+  window.Rollbar.loadFull(window, document, true, this._rollbarConfig, callback);
 };
 
 
 /**
  * Identify.
- *
+ * 
  * @param {Identify} identify
  */
-
-Rollbar.prototype.identify = function (identify) {
+RollbarIntegration.prototype.identify = function(identify) {
+  // do stuff with `id` or `traits`
   if (!this.options.identify) return;
 
-  var traits = identify.traits();
-  var rollbar = window._rollbar;
-  var params = rollbar.shift
-    ? rollbar[1] = rollbar[1] || {}
-    : rollbar.extraParams = rollbar.extraParams || {};
+  // Don't allow identify without a user id
+  var uid = identify.userId();
+  if (uid === null || uid === undefined) return;
 
-  params.person = params.person || {};
-  extend(params.person, traits);
+  var rollbar = window.Rollbar;
+  var person = {id: uid};
+  extend(person, identify.traits());
+  rollbar.configure({payload: {person: person}});
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/saasquatch.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/saasquatch.js", function(exports, require, module){
 
 /**
  * Module dependencies.
@@ -8820,7 +9045,7 @@ SaaSquatch.prototype.identify = function(identify){
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/sentry.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/sentry.js", function(exports, require, module){
 var integration = require('integration');
 var is = require('is');
 var load = require('load-script');
@@ -8894,7 +9119,7 @@ Sentry.prototype.identify = function (identify) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/snapengage.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/snapengage.js", function(exports, require, module){
 
 var integration = require('integration');
 var is = require('is');
@@ -8971,7 +9196,7 @@ SnapEngage.prototype.identify = function (identify) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/spinnakr.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/spinnakr.js", function(exports, require, module){
 
 var integration = require('integration');
 var load = require('load-script');
@@ -9031,7 +9256,7 @@ Spinnakr.prototype.load = function (callback) {
   load('//d3ojzyhbolvoi5.cloudfront.net/js/so.js', callback);
 };
 });
-require.register("segmentio-analytics.js-integrations/lib/tapstream.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/tapstream.js", function(exports, require, module){
 
 var callback = require('callback');
 var integration = require('integration');
@@ -9138,7 +9363,7 @@ Tapstream.prototype.track = function (track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/trakio.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/trakio.js", function(exports, require, module){
 
 var alias = require('alias');
 var callback = require('callback');
@@ -9319,7 +9544,7 @@ Trakio.prototype.alias = function (alias) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/twitter-ads.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/twitter-ads.js", function(exports, require, module){
 
 var pixel = require('load-pixel')('//analytics.twitter.com/i/adsct');
 var integration = require('integration');
@@ -9369,7 +9594,7 @@ TwitterAds.prototype.track = function(track){
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/usercycle.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/usercycle.js", function(exports, require, module){
 
 var callback = require('callback');
 var integration = require('integration');
@@ -9461,7 +9686,7 @@ Usercycle.prototype.track = function (track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/userfox.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/userfox.js", function(exports, require, module){
 
 var alias = require('alias');
 var callback = require('callback');
@@ -9564,7 +9789,7 @@ function formatDate (date) {
 }
 
 });
-require.register("segmentio-analytics.js-integrations/lib/uservoice.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/uservoice.js", function(exports, require, module){
 
 var alias = require('alias');
 var callback = require('callback');
@@ -9781,7 +10006,7 @@ function showClassicWidget (type, options) {
 }
 
 });
-require.register("segmentio-analytics.js-integrations/lib/vero.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/vero.js", function(exports, require, module){
 
 var callback = require('callback');
 var integration = require('integration');
@@ -9885,7 +10110,7 @@ Vero.prototype.track = function (track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/visual-website-optimizer.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/visual-website-optimizer.js", function(exports, require, module){
 
 var callback = require('callback');
 var each = require('each');
@@ -9997,7 +10222,7 @@ function variation (id) {
   return variationId ? experiment.comb_n[variationId] : null;
 }
 });
-require.register("segmentio-analytics.js-integrations/lib/webengage.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/webengage.js", function(exports, require, module){
 
 var integration = require('integration');
 var load = require('load-script');
@@ -10060,7 +10285,7 @@ WebEngage.prototype.load = function(fn){
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/woopra.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/woopra.js", function(exports, require, module){
 
 var each = require('each');
 var extend = require('extend');
@@ -10162,7 +10387,7 @@ Woopra.prototype.track = function (track) {
 };
 
 });
-require.register("segmentio-analytics.js-integrations/lib/yandex-metrica.js", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/yandex-metrica.js", function(exports, require, module){
 
 var callback = require('callback');
 var integration = require('integration');
@@ -12144,7 +12369,7 @@ function array (arr, strict) {
 require.register("component-json-fallback/index.js", function(exports, require, module){
 /*
     json2.js
-    2014-02-04
+    2011-10-19
 
     Public Domain.
 
@@ -12303,9 +12528,7 @@ require.register("component-json-fallback/index.js", function(exports, require, 
 // Create a JSON object only if one does not already exist. We create the
 // methods in a closure to avoid creating global variables.
 
-if (typeof JSON !== 'object') {
-    JSON = {};
-}
+var JSON = {};
 
 (function () {
     'use strict';
@@ -12317,7 +12540,7 @@ if (typeof JSON !== 'object') {
 
     if (typeof Date.prototype.toJSON !== 'function') {
 
-        Date.prototype.toJSON = function () {
+        Date.prototype.toJSON = function (key) {
 
             return isFinite(this.valueOf())
                 ? this.getUTCFullYear()     + '-' +
@@ -12331,16 +12554,24 @@ if (typeof JSON !== 'object') {
 
         String.prototype.toJSON      =
             Number.prototype.toJSON  =
-            Boolean.prototype.toJSON = function () {
+            Boolean.prototype.toJSON = function (key) {
                 return this.valueOf();
             };
     }
 
-    var cx,
-        escapable,
+    var cx = /[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g,
+        escapable = /[\\\"\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g,
         gap,
         indent,
-        meta,
+        meta = {    // table of character substitutions
+            '\b': '\\b',
+            '\t': '\\t',
+            '\n': '\\n',
+            '\f': '\\f',
+            '\r': '\\r',
+            '"' : '\\"',
+            '\\': '\\\\'
+        },
         rep;
 
 
@@ -12492,16 +12723,6 @@ if (typeof JSON !== 'object') {
 // If the JSON object does not yet have a stringify method, give it one.
 
     if (typeof JSON.stringify !== 'function') {
-        escapable = /[\\\"\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
-        meta = {    // table of character substitutions
-            '\b': '\\b',
-            '\t': '\\t',
-            '\n': '\\n',
-            '\f': '\\f',
-            '\r': '\\r',
-            '"' : '\\"',
-            '\\': '\\\\'
-        };
         JSON.stringify = function (value, replacer, space) {
 
 // The stringify method takes a value and an optional replacer, and an optional
@@ -12549,7 +12770,6 @@ if (typeof JSON !== 'object') {
 // If the JSON object does not yet have a parse method, give it one.
 
     if (typeof JSON.parse !== 'function') {
-        cx = /[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
         JSON.parse = function (text, reviver) {
 
 // The parse method takes a text and an optional reviver function, and returns
@@ -12632,8 +12852,7 @@ if (typeof JSON !== 'object') {
     }
 }());
 
-module.exports = JSON;
-
+module.exports = JSON
 });
 require.register("segmentio-json/index.js", function(exports, require, module){
 
@@ -12644,10 +12863,10 @@ module.exports = 'undefined' == typeof JSON
 });
 require.register("segmentio-new-date/lib/index.js", function(exports, require, module){
 
-var is = require('is');
-var isodate = require('isodate');
-var milliseconds = require('./milliseconds');
-var seconds = require('./seconds');
+var is = require('is')
+  , isodate = require('isodate')
+  , milliseconds = require('./milliseconds')
+  , seconds = require('./seconds');
 
 
 /**
@@ -12658,8 +12877,8 @@ var seconds = require('./seconds');
  */
 
 module.exports = function newDate (val) {
-  if (is.date(val)) return val;
   if (is.number(val)) return new Date(toMs(val));
+  if (is.date(val)) return new Date(val.getTime()); // firefox woulda floored
 
   // date strings
   if (isodate.is(val)) return isodate.parse(val);
@@ -14303,7 +14522,7 @@ module.exports.User = User;
 
 
 
-require.register("segmentio-analytics.js-integrations/lib/slugs.json", function(exports, require, module){
+require.register("rollbar-analytics.js-integrations/lib/slugs.json", function(exports, require, module){
 module.exports = [
   "adroll",
   "adwords",
@@ -14341,6 +14560,7 @@ module.exports = [
   "inspectlet",
   "intercom",
   "keen-io",
+  "kenshoo",
   "kissmetrics",
   "klaviyo",
   "leadlander",
@@ -14351,6 +14571,7 @@ module.exports = [
   "mojn",
   "mouseflow",
   "mousestats",
+  "navilytics",
   "olark",
   "optimizely",
   "perfect-audience",
@@ -14499,10 +14720,12 @@ require.alias("ianstormtaylor-bind/index.js", "bind/index.js");
 require.alias("component-bind/index.js", "ianstormtaylor-bind/deps/bind/index.js");
 
 require.alias("segmentio-bind-all/index.js", "ianstormtaylor-bind/deps/bind-all/index.js");
+require.alias("segmentio-bind-all/index.js", "ianstormtaylor-bind/deps/bind-all/index.js");
 require.alias("component-bind/index.js", "segmentio-bind-all/deps/bind/index.js");
 
 require.alias("component-type/index.js", "segmentio-bind-all/deps/type/index.js");
 
+require.alias("segmentio-bind-all/index.js", "segmentio-bind-all/index.js");
 require.alias("ianstormtaylor-callback/index.js", "analytics/deps/callback/index.js");
 require.alias("ianstormtaylor-callback/index.js", "callback/index.js");
 require.alias("timoxley-next-tick/index.js", "ianstormtaylor-callback/deps/next-tick/index.js");
@@ -14534,10 +14757,12 @@ require.alias("ianstormtaylor-bind/index.js", "segmentio-analytics.js-integratio
 require.alias("component-bind/index.js", "ianstormtaylor-bind/deps/bind/index.js");
 
 require.alias("segmentio-bind-all/index.js", "ianstormtaylor-bind/deps/bind-all/index.js");
+require.alias("segmentio-bind-all/index.js", "ianstormtaylor-bind/deps/bind-all/index.js");
 require.alias("component-bind/index.js", "segmentio-bind-all/deps/bind/index.js");
 
 require.alias("component-type/index.js", "segmentio-bind-all/deps/type/index.js");
 
+require.alias("segmentio-bind-all/index.js", "segmentio-bind-all/index.js");
 require.alias("ianstormtaylor-callback/index.js", "segmentio-analytics.js-integration/deps/callback/index.js");
 require.alias("timoxley-next-tick/index.js", "ianstormtaylor-callback/deps/next-tick/index.js");
 
@@ -14551,118 +14776,118 @@ require.alias("visionmedia-debug/index.js", "segmentio-analytics.js-integration/
 require.alias("visionmedia-debug/debug.js", "segmentio-analytics.js-integration/deps/debug/debug.js");
 
 require.alias("segmentio-analytics.js-integration/lib/index.js", "segmentio-analytics.js-integration/index.js");
-require.alias("segmentio-analytics.js-integrations/index.js", "analytics/deps/integrations/index.js");
-require.alias("segmentio-analytics.js-integrations/lib/adroll.js", "analytics/deps/integrations/lib/adroll.js");
-require.alias("segmentio-analytics.js-integrations/lib/adwords.js", "analytics/deps/integrations/lib/adwords.js");
-require.alias("segmentio-analytics.js-integrations/lib/alexa.js", "analytics/deps/integrations/lib/alexa.js");
-require.alias("segmentio-analytics.js-integrations/lib/amplitude.js", "analytics/deps/integrations/lib/amplitude.js");
-require.alias("segmentio-analytics.js-integrations/lib/awesm.js", "analytics/deps/integrations/lib/awesm.js");
-require.alias("segmentio-analytics.js-integrations/lib/awesomatic.js", "analytics/deps/integrations/lib/awesomatic.js");
-require.alias("segmentio-analytics.js-integrations/lib/bing-ads.js", "analytics/deps/integrations/lib/bing-ads.js");
-require.alias("segmentio-analytics.js-integrations/lib/bronto.js", "analytics/deps/integrations/lib/bronto.js");
-require.alias("segmentio-analytics.js-integrations/lib/bugherd.js", "analytics/deps/integrations/lib/bugherd.js");
-require.alias("segmentio-analytics.js-integrations/lib/bugsnag.js", "analytics/deps/integrations/lib/bugsnag.js");
-require.alias("segmentio-analytics.js-integrations/lib/chartbeat.js", "analytics/deps/integrations/lib/chartbeat.js");
-require.alias("segmentio-analytics.js-integrations/lib/churnbee.js", "analytics/deps/integrations/lib/churnbee.js");
-require.alias("segmentio-analytics.js-integrations/lib/clicktale.js", "analytics/deps/integrations/lib/clicktale.js");
-require.alias("segmentio-analytics.js-integrations/lib/clicky.js", "analytics/deps/integrations/lib/clicky.js");
-require.alias("segmentio-analytics.js-integrations/lib/comscore.js", "analytics/deps/integrations/lib/comscore.js");
-require.alias("segmentio-analytics.js-integrations/lib/crazy-egg.js", "analytics/deps/integrations/lib/crazy-egg.js");
-require.alias("segmentio-analytics.js-integrations/lib/curebit.js", "analytics/deps/integrations/lib/curebit.js");
-require.alias("segmentio-analytics.js-integrations/lib/customerio.js", "analytics/deps/integrations/lib/customerio.js");
-require.alias("segmentio-analytics.js-integrations/lib/drip.js", "analytics/deps/integrations/lib/drip.js");
-require.alias("segmentio-analytics.js-integrations/lib/errorception.js", "analytics/deps/integrations/lib/errorception.js");
-require.alias("segmentio-analytics.js-integrations/lib/evergage.js", "analytics/deps/integrations/lib/evergage.js");
-require.alias("segmentio-analytics.js-integrations/lib/facebook-ads.js", "analytics/deps/integrations/lib/facebook-ads.js");
-require.alias("segmentio-analytics.js-integrations/lib/foxmetrics.js", "analytics/deps/integrations/lib/foxmetrics.js");
-require.alias("segmentio-analytics.js-integrations/lib/gauges.js", "analytics/deps/integrations/lib/gauges.js");
-require.alias("segmentio-analytics.js-integrations/lib/get-satisfaction.js", "analytics/deps/integrations/lib/get-satisfaction.js");
-require.alias("segmentio-analytics.js-integrations/lib/google-analytics.js", "analytics/deps/integrations/lib/google-analytics.js");
-require.alias("segmentio-analytics.js-integrations/lib/google-tag-manager.js", "analytics/deps/integrations/lib/google-tag-manager.js");
-require.alias("segmentio-analytics.js-integrations/lib/gosquared.js", "analytics/deps/integrations/lib/gosquared.js");
-require.alias("segmentio-analytics.js-integrations/lib/heap.js", "analytics/deps/integrations/lib/heap.js");
-require.alias("segmentio-analytics.js-integrations/lib/hellobar.js", "analytics/deps/integrations/lib/hellobar.js");
-require.alias("segmentio-analytics.js-integrations/lib/hittail.js", "analytics/deps/integrations/lib/hittail.js");
-require.alias("segmentio-analytics.js-integrations/lib/hubspot.js", "analytics/deps/integrations/lib/hubspot.js");
-require.alias("segmentio-analytics.js-integrations/lib/improvely.js", "analytics/deps/integrations/lib/improvely.js");
-require.alias("segmentio-analytics.js-integrations/lib/inspectlet.js", "analytics/deps/integrations/lib/inspectlet.js");
-require.alias("segmentio-analytics.js-integrations/lib/intercom.js", "analytics/deps/integrations/lib/intercom.js");
-require.alias("segmentio-analytics.js-integrations/lib/keen-io.js", "analytics/deps/integrations/lib/keen-io.js");
-require.alias("segmentio-analytics.js-integrations/lib/kissmetrics.js", "analytics/deps/integrations/lib/kissmetrics.js");
-require.alias("segmentio-analytics.js-integrations/lib/klaviyo.js", "analytics/deps/integrations/lib/klaviyo.js");
-require.alias("segmentio-analytics.js-integrations/lib/leadlander.js", "analytics/deps/integrations/lib/leadlander.js");
-require.alias("segmentio-analytics.js-integrations/lib/livechat.js", "analytics/deps/integrations/lib/livechat.js");
-require.alias("segmentio-analytics.js-integrations/lib/lucky-orange.js", "analytics/deps/integrations/lib/lucky-orange.js");
-require.alias("segmentio-analytics.js-integrations/lib/lytics.js", "analytics/deps/integrations/lib/lytics.js");
-require.alias("segmentio-analytics.js-integrations/lib/mixpanel.js", "analytics/deps/integrations/lib/mixpanel.js");
-require.alias("segmentio-analytics.js-integrations/lib/mojn.js", "analytics/deps/integrations/lib/mojn.js");
-require.alias("segmentio-analytics.js-integrations/lib/mouseflow.js", "analytics/deps/integrations/lib/mouseflow.js");
-require.alias("segmentio-analytics.js-integrations/lib/mousestats.js", "analytics/deps/integrations/lib/mousestats.js");
-require.alias("segmentio-analytics.js-integrations/lib/olark.js", "analytics/deps/integrations/lib/olark.js");
-require.alias("segmentio-analytics.js-integrations/lib/optimizely.js", "analytics/deps/integrations/lib/optimizely.js");
-require.alias("segmentio-analytics.js-integrations/lib/perfect-audience.js", "analytics/deps/integrations/lib/perfect-audience.js");
-require.alias("segmentio-analytics.js-integrations/lib/pingdom.js", "analytics/deps/integrations/lib/pingdom.js");
-require.alias("segmentio-analytics.js-integrations/lib/preact.js", "analytics/deps/integrations/lib/preact.js");
-require.alias("segmentio-analytics.js-integrations/lib/qualaroo.js", "analytics/deps/integrations/lib/qualaroo.js");
-require.alias("segmentio-analytics.js-integrations/lib/quantcast.js", "analytics/deps/integrations/lib/quantcast.js");
-require.alias("segmentio-analytics.js-integrations/lib/rollbar.js", "analytics/deps/integrations/lib/rollbar.js");
-require.alias("segmentio-analytics.js-integrations/lib/saasquatch.js", "analytics/deps/integrations/lib/saasquatch.js");
-require.alias("segmentio-analytics.js-integrations/lib/sentry.js", "analytics/deps/integrations/lib/sentry.js");
-require.alias("segmentio-analytics.js-integrations/lib/snapengage.js", "analytics/deps/integrations/lib/snapengage.js");
-require.alias("segmentio-analytics.js-integrations/lib/spinnakr.js", "analytics/deps/integrations/lib/spinnakr.js");
-require.alias("segmentio-analytics.js-integrations/lib/tapstream.js", "analytics/deps/integrations/lib/tapstream.js");
-require.alias("segmentio-analytics.js-integrations/lib/trakio.js", "analytics/deps/integrations/lib/trakio.js");
-require.alias("segmentio-analytics.js-integrations/lib/twitter-ads.js", "analytics/deps/integrations/lib/twitter-ads.js");
-require.alias("segmentio-analytics.js-integrations/lib/usercycle.js", "analytics/deps/integrations/lib/usercycle.js");
-require.alias("segmentio-analytics.js-integrations/lib/userfox.js", "analytics/deps/integrations/lib/userfox.js");
-require.alias("segmentio-analytics.js-integrations/lib/uservoice.js", "analytics/deps/integrations/lib/uservoice.js");
-require.alias("segmentio-analytics.js-integrations/lib/vero.js", "analytics/deps/integrations/lib/vero.js");
-require.alias("segmentio-analytics.js-integrations/lib/visual-website-optimizer.js", "analytics/deps/integrations/lib/visual-website-optimizer.js");
-require.alias("segmentio-analytics.js-integrations/lib/webengage.js", "analytics/deps/integrations/lib/webengage.js");
-require.alias("segmentio-analytics.js-integrations/lib/woopra.js", "analytics/deps/integrations/lib/woopra.js");
-require.alias("segmentio-analytics.js-integrations/lib/yandex-metrica.js", "analytics/deps/integrations/lib/yandex-metrica.js");
-require.alias("segmentio-analytics.js-integrations/index.js", "integrations/index.js");
-require.alias("component-clone/index.js", "segmentio-analytics.js-integrations/deps/clone/index.js");
+require.alias("rollbar-analytics.js-integrations/index.js", "analytics/deps/integrations/index.js");
+require.alias("rollbar-analytics.js-integrations/lib/adroll.js", "analytics/deps/integrations/lib/adroll.js");
+require.alias("rollbar-analytics.js-integrations/lib/adwords.js", "analytics/deps/integrations/lib/adwords.js");
+require.alias("rollbar-analytics.js-integrations/lib/alexa.js", "analytics/deps/integrations/lib/alexa.js");
+require.alias("rollbar-analytics.js-integrations/lib/amplitude.js", "analytics/deps/integrations/lib/amplitude.js");
+require.alias("rollbar-analytics.js-integrations/lib/awesm.js", "analytics/deps/integrations/lib/awesm.js");
+require.alias("rollbar-analytics.js-integrations/lib/awesomatic.js", "analytics/deps/integrations/lib/awesomatic.js");
+require.alias("rollbar-analytics.js-integrations/lib/bing-ads.js", "analytics/deps/integrations/lib/bing-ads.js");
+require.alias("rollbar-analytics.js-integrations/lib/bronto.js", "analytics/deps/integrations/lib/bronto.js");
+require.alias("rollbar-analytics.js-integrations/lib/bugherd.js", "analytics/deps/integrations/lib/bugherd.js");
+require.alias("rollbar-analytics.js-integrations/lib/bugsnag.js", "analytics/deps/integrations/lib/bugsnag.js");
+require.alias("rollbar-analytics.js-integrations/lib/chartbeat.js", "analytics/deps/integrations/lib/chartbeat.js");
+require.alias("rollbar-analytics.js-integrations/lib/churnbee.js", "analytics/deps/integrations/lib/churnbee.js");
+require.alias("rollbar-analytics.js-integrations/lib/clicktale.js", "analytics/deps/integrations/lib/clicktale.js");
+require.alias("rollbar-analytics.js-integrations/lib/clicky.js", "analytics/deps/integrations/lib/clicky.js");
+require.alias("rollbar-analytics.js-integrations/lib/comscore.js", "analytics/deps/integrations/lib/comscore.js");
+require.alias("rollbar-analytics.js-integrations/lib/crazy-egg.js", "analytics/deps/integrations/lib/crazy-egg.js");
+require.alias("rollbar-analytics.js-integrations/lib/curebit.js", "analytics/deps/integrations/lib/curebit.js");
+require.alias("rollbar-analytics.js-integrations/lib/customerio.js", "analytics/deps/integrations/lib/customerio.js");
+require.alias("rollbar-analytics.js-integrations/lib/drip.js", "analytics/deps/integrations/lib/drip.js");
+require.alias("rollbar-analytics.js-integrations/lib/errorception.js", "analytics/deps/integrations/lib/errorception.js");
+require.alias("rollbar-analytics.js-integrations/lib/evergage.js", "analytics/deps/integrations/lib/evergage.js");
+require.alias("rollbar-analytics.js-integrations/lib/facebook-ads.js", "analytics/deps/integrations/lib/facebook-ads.js");
+require.alias("rollbar-analytics.js-integrations/lib/foxmetrics.js", "analytics/deps/integrations/lib/foxmetrics.js");
+require.alias("rollbar-analytics.js-integrations/lib/gauges.js", "analytics/deps/integrations/lib/gauges.js");
+require.alias("rollbar-analytics.js-integrations/lib/get-satisfaction.js", "analytics/deps/integrations/lib/get-satisfaction.js");
+require.alias("rollbar-analytics.js-integrations/lib/google-analytics.js", "analytics/deps/integrations/lib/google-analytics.js");
+require.alias("rollbar-analytics.js-integrations/lib/google-tag-manager.js", "analytics/deps/integrations/lib/google-tag-manager.js");
+require.alias("rollbar-analytics.js-integrations/lib/gosquared.js", "analytics/deps/integrations/lib/gosquared.js");
+require.alias("rollbar-analytics.js-integrations/lib/heap.js", "analytics/deps/integrations/lib/heap.js");
+require.alias("rollbar-analytics.js-integrations/lib/hellobar.js", "analytics/deps/integrations/lib/hellobar.js");
+require.alias("rollbar-analytics.js-integrations/lib/hittail.js", "analytics/deps/integrations/lib/hittail.js");
+require.alias("rollbar-analytics.js-integrations/lib/hubspot.js", "analytics/deps/integrations/lib/hubspot.js");
+require.alias("rollbar-analytics.js-integrations/lib/improvely.js", "analytics/deps/integrations/lib/improvely.js");
+require.alias("rollbar-analytics.js-integrations/lib/inspectlet.js", "analytics/deps/integrations/lib/inspectlet.js");
+require.alias("rollbar-analytics.js-integrations/lib/intercom.js", "analytics/deps/integrations/lib/intercom.js");
+require.alias("rollbar-analytics.js-integrations/lib/keen-io.js", "analytics/deps/integrations/lib/keen-io.js");
+require.alias("rollbar-analytics.js-integrations/lib/kenshoo.js", "analytics/deps/integrations/lib/kenshoo.js");
+require.alias("rollbar-analytics.js-integrations/lib/kissmetrics.js", "analytics/deps/integrations/lib/kissmetrics.js");
+require.alias("rollbar-analytics.js-integrations/lib/klaviyo.js", "analytics/deps/integrations/lib/klaviyo.js");
+require.alias("rollbar-analytics.js-integrations/lib/leadlander.js", "analytics/deps/integrations/lib/leadlander.js");
+require.alias("rollbar-analytics.js-integrations/lib/livechat.js", "analytics/deps/integrations/lib/livechat.js");
+require.alias("rollbar-analytics.js-integrations/lib/lucky-orange.js", "analytics/deps/integrations/lib/lucky-orange.js");
+require.alias("rollbar-analytics.js-integrations/lib/lytics.js", "analytics/deps/integrations/lib/lytics.js");
+require.alias("rollbar-analytics.js-integrations/lib/mixpanel.js", "analytics/deps/integrations/lib/mixpanel.js");
+require.alias("rollbar-analytics.js-integrations/lib/mojn.js", "analytics/deps/integrations/lib/mojn.js");
+require.alias("rollbar-analytics.js-integrations/lib/mouseflow.js", "analytics/deps/integrations/lib/mouseflow.js");
+require.alias("rollbar-analytics.js-integrations/lib/mousestats.js", "analytics/deps/integrations/lib/mousestats.js");
+require.alias("rollbar-analytics.js-integrations/lib/navilytics.js", "analytics/deps/integrations/lib/navilytics.js");
+require.alias("rollbar-analytics.js-integrations/lib/olark.js", "analytics/deps/integrations/lib/olark.js");
+require.alias("rollbar-analytics.js-integrations/lib/optimizely.js", "analytics/deps/integrations/lib/optimizely.js");
+require.alias("rollbar-analytics.js-integrations/lib/perfect-audience.js", "analytics/deps/integrations/lib/perfect-audience.js");
+require.alias("rollbar-analytics.js-integrations/lib/pingdom.js", "analytics/deps/integrations/lib/pingdom.js");
+require.alias("rollbar-analytics.js-integrations/lib/preact.js", "analytics/deps/integrations/lib/preact.js");
+require.alias("rollbar-analytics.js-integrations/lib/qualaroo.js", "analytics/deps/integrations/lib/qualaroo.js");
+require.alias("rollbar-analytics.js-integrations/lib/quantcast.js", "analytics/deps/integrations/lib/quantcast.js");
+require.alias("rollbar-analytics.js-integrations/lib/rollbar.js", "analytics/deps/integrations/lib/rollbar.js");
+require.alias("rollbar-analytics.js-integrations/lib/saasquatch.js", "analytics/deps/integrations/lib/saasquatch.js");
+require.alias("rollbar-analytics.js-integrations/lib/sentry.js", "analytics/deps/integrations/lib/sentry.js");
+require.alias("rollbar-analytics.js-integrations/lib/snapengage.js", "analytics/deps/integrations/lib/snapengage.js");
+require.alias("rollbar-analytics.js-integrations/lib/spinnakr.js", "analytics/deps/integrations/lib/spinnakr.js");
+require.alias("rollbar-analytics.js-integrations/lib/tapstream.js", "analytics/deps/integrations/lib/tapstream.js");
+require.alias("rollbar-analytics.js-integrations/lib/trakio.js", "analytics/deps/integrations/lib/trakio.js");
+require.alias("rollbar-analytics.js-integrations/lib/twitter-ads.js", "analytics/deps/integrations/lib/twitter-ads.js");
+require.alias("rollbar-analytics.js-integrations/lib/usercycle.js", "analytics/deps/integrations/lib/usercycle.js");
+require.alias("rollbar-analytics.js-integrations/lib/userfox.js", "analytics/deps/integrations/lib/userfox.js");
+require.alias("rollbar-analytics.js-integrations/lib/uservoice.js", "analytics/deps/integrations/lib/uservoice.js");
+require.alias("rollbar-analytics.js-integrations/lib/vero.js", "analytics/deps/integrations/lib/vero.js");
+require.alias("rollbar-analytics.js-integrations/lib/visual-website-optimizer.js", "analytics/deps/integrations/lib/visual-website-optimizer.js");
+require.alias("rollbar-analytics.js-integrations/lib/webengage.js", "analytics/deps/integrations/lib/webengage.js");
+require.alias("rollbar-analytics.js-integrations/lib/woopra.js", "analytics/deps/integrations/lib/woopra.js");
+require.alias("rollbar-analytics.js-integrations/lib/yandex-metrica.js", "analytics/deps/integrations/lib/yandex-metrica.js");
+require.alias("rollbar-analytics.js-integrations/index.js", "integrations/index.js");
+require.alias("component-clone/index.js", "rollbar-analytics.js-integrations/deps/clone/index.js");
 require.alias("component-type/index.js", "component-clone/deps/type/index.js");
 
-require.alias("component-domify/index.js", "segmentio-analytics.js-integrations/deps/domify/index.js");
+require.alias("component-domify/index.js", "rollbar-analytics.js-integrations/deps/domify/index.js");
 
-require.alias("component-each/index.js", "segmentio-analytics.js-integrations/deps/each/index.js");
+require.alias("component-each/index.js", "rollbar-analytics.js-integrations/deps/each/index.js");
 require.alias("component-type/index.js", "component-each/deps/type/index.js");
 
-require.alias("component-once/index.js", "segmentio-analytics.js-integrations/deps/once/index.js");
+require.alias("component-once/index.js", "rollbar-analytics.js-integrations/deps/once/index.js");
 
-require.alias("component-type/index.js", "segmentio-analytics.js-integrations/deps/type/index.js");
+require.alias("component-type/index.js", "rollbar-analytics.js-integrations/deps/type/index.js");
 
-require.alias("component-url/index.js", "segmentio-analytics.js-integrations/deps/url/index.js");
+require.alias("component-url/index.js", "rollbar-analytics.js-integrations/deps/url/index.js");
 
-require.alias("ianstormtaylor-callback/index.js", "segmentio-analytics.js-integrations/deps/callback/index.js");
+require.alias("ianstormtaylor-callback/index.js", "rollbar-analytics.js-integrations/deps/callback/index.js");
 require.alias("timoxley-next-tick/index.js", "ianstormtaylor-callback/deps/next-tick/index.js");
 
-require.alias("ianstormtaylor-bind/index.js", "segmentio-analytics.js-integrations/deps/bind/index.js");
+require.alias("ianstormtaylor-bind/index.js", "rollbar-analytics.js-integrations/deps/bind/index.js");
 require.alias("component-bind/index.js", "ianstormtaylor-bind/deps/bind/index.js");
 
+require.alias("segmentio-bind-all/index.js", "ianstormtaylor-bind/deps/bind-all/index.js");
 require.alias("segmentio-bind-all/index.js", "ianstormtaylor-bind/deps/bind-all/index.js");
 require.alias("component-bind/index.js", "segmentio-bind-all/deps/bind/index.js");
 
 require.alias("component-type/index.js", "segmentio-bind-all/deps/type/index.js");
 
-require.alias("ianstormtaylor-is/index.js", "segmentio-analytics.js-integrations/deps/is/index.js");
+require.alias("segmentio-bind-all/index.js", "segmentio-bind-all/index.js");
+require.alias("ianstormtaylor-is/index.js", "rollbar-analytics.js-integrations/deps/is/index.js");
 require.alias("component-type/index.js", "ianstormtaylor-is/deps/type/index.js");
 
 require.alias("ianstormtaylor-is-empty/index.js", "ianstormtaylor-is/deps/is-empty/index.js");
 
-require.alias("segmentio-alias/index.js", "segmentio-analytics.js-integrations/deps/alias/index.js");
-require.alias("component-clone/index.js", "segmentio-alias/deps/clone/index.js");
-require.alias("component-type/index.js", "component-clone/deps/type/index.js");
+require.alias("segmentio-alias/index.js", "rollbar-analytics.js-integrations/deps/alias/index.js");
 
-require.alias("component-type/index.js", "segmentio-alias/deps/type/index.js");
-
-require.alias("segmentio-analytics.js-integration/lib/index.js", "segmentio-analytics.js-integrations/deps/integration/lib/index.js");
-require.alias("segmentio-analytics.js-integration/lib/protos.js", "segmentio-analytics.js-integrations/deps/integration/lib/protos.js");
-require.alias("segmentio-analytics.js-integration/lib/events.js", "segmentio-analytics.js-integrations/deps/integration/lib/events.js");
-require.alias("segmentio-analytics.js-integration/lib/statics.js", "segmentio-analytics.js-integrations/deps/integration/lib/statics.js");
-require.alias("segmentio-analytics.js-integration/lib/index.js", "segmentio-analytics.js-integrations/deps/integration/index.js");
+require.alias("segmentio-analytics.js-integration/lib/index.js", "rollbar-analytics.js-integrations/deps/integration/lib/index.js");
+require.alias("segmentio-analytics.js-integration/lib/protos.js", "rollbar-analytics.js-integrations/deps/integration/lib/protos.js");
+require.alias("segmentio-analytics.js-integration/lib/events.js", "rollbar-analytics.js-integrations/deps/integration/lib/events.js");
+require.alias("segmentio-analytics.js-integration/lib/statics.js", "rollbar-analytics.js-integrations/deps/integration/lib/statics.js");
+require.alias("segmentio-analytics.js-integration/lib/index.js", "rollbar-analytics.js-integrations/deps/integration/index.js");
 require.alias("avetisk-defaults/index.js", "segmentio-analytics.js-integration/deps/defaults/index.js");
 
 require.alias("component-clone/index.js", "segmentio-analytics.js-integration/deps/clone/index.js");
@@ -14675,10 +14900,12 @@ require.alias("ianstormtaylor-bind/index.js", "segmentio-analytics.js-integratio
 require.alias("component-bind/index.js", "ianstormtaylor-bind/deps/bind/index.js");
 
 require.alias("segmentio-bind-all/index.js", "ianstormtaylor-bind/deps/bind-all/index.js");
+require.alias("segmentio-bind-all/index.js", "ianstormtaylor-bind/deps/bind-all/index.js");
 require.alias("component-bind/index.js", "segmentio-bind-all/deps/bind/index.js");
 
 require.alias("component-type/index.js", "segmentio-bind-all/deps/type/index.js");
 
+require.alias("segmentio-bind-all/index.js", "segmentio-bind-all/index.js");
 require.alias("ianstormtaylor-callback/index.js", "segmentio-analytics.js-integration/deps/callback/index.js");
 require.alias("timoxley-next-tick/index.js", "ianstormtaylor-callback/deps/next-tick/index.js");
 
@@ -14692,28 +14919,25 @@ require.alias("visionmedia-debug/index.js", "segmentio-analytics.js-integration/
 require.alias("visionmedia-debug/debug.js", "segmentio-analytics.js-integration/deps/debug/debug.js");
 
 require.alias("segmentio-analytics.js-integration/lib/index.js", "segmentio-analytics.js-integration/index.js");
-require.alias("segmentio-canonical/index.js", "segmentio-analytics.js-integrations/deps/canonical/index.js");
+require.alias("segmentio-canonical/index.js", "rollbar-analytics.js-integrations/deps/canonical/index.js");
 
-require.alias("segmentio-convert-dates/index.js", "segmentio-analytics.js-integrations/deps/convert-dates/index.js");
-require.alias("component-clone/index.js", "segmentio-convert-dates/deps/clone/index.js");
-require.alias("component-type/index.js", "component-clone/deps/type/index.js");
-
+require.alias("segmentio-convert-dates/index.js", "rollbar-analytics.js-integrations/deps/convert-dates/index.js");
 require.alias("ianstormtaylor-is/index.js", "segmentio-convert-dates/deps/is/index.js");
 require.alias("component-type/index.js", "ianstormtaylor-is/deps/type/index.js");
 
 require.alias("ianstormtaylor-is-empty/index.js", "ianstormtaylor-is/deps/is-empty/index.js");
 
-require.alias("segmentio-extend/index.js", "segmentio-analytics.js-integrations/deps/extend/index.js");
+require.alias("segmentio-extend/index.js", "rollbar-analytics.js-integrations/deps/extend/index.js");
 
-require.alias("segmentio-facade/lib/index.js", "segmentio-analytics.js-integrations/deps/facade/lib/index.js");
-require.alias("segmentio-facade/lib/alias.js", "segmentio-analytics.js-integrations/deps/facade/lib/alias.js");
-require.alias("segmentio-facade/lib/facade.js", "segmentio-analytics.js-integrations/deps/facade/lib/facade.js");
-require.alias("segmentio-facade/lib/group.js", "segmentio-analytics.js-integrations/deps/facade/lib/group.js");
-require.alias("segmentio-facade/lib/page.js", "segmentio-analytics.js-integrations/deps/facade/lib/page.js");
-require.alias("segmentio-facade/lib/identify.js", "segmentio-analytics.js-integrations/deps/facade/lib/identify.js");
-require.alias("segmentio-facade/lib/is-enabled.js", "segmentio-analytics.js-integrations/deps/facade/lib/is-enabled.js");
-require.alias("segmentio-facade/lib/track.js", "segmentio-analytics.js-integrations/deps/facade/lib/track.js");
-require.alias("segmentio-facade/lib/index.js", "segmentio-analytics.js-integrations/deps/facade/index.js");
+require.alias("segmentio-facade/lib/index.js", "rollbar-analytics.js-integrations/deps/facade/lib/index.js");
+require.alias("segmentio-facade/lib/alias.js", "rollbar-analytics.js-integrations/deps/facade/lib/alias.js");
+require.alias("segmentio-facade/lib/facade.js", "rollbar-analytics.js-integrations/deps/facade/lib/facade.js");
+require.alias("segmentio-facade/lib/group.js", "rollbar-analytics.js-integrations/deps/facade/lib/group.js");
+require.alias("segmentio-facade/lib/page.js", "rollbar-analytics.js-integrations/deps/facade/lib/page.js");
+require.alias("segmentio-facade/lib/identify.js", "rollbar-analytics.js-integrations/deps/facade/lib/identify.js");
+require.alias("segmentio-facade/lib/is-enabled.js", "rollbar-analytics.js-integrations/deps/facade/lib/is-enabled.js");
+require.alias("segmentio-facade/lib/track.js", "rollbar-analytics.js-integrations/deps/facade/lib/track.js");
+require.alias("segmentio-facade/lib/index.js", "rollbar-analytics.js-integrations/deps/facade/index.js");
 require.alias("camshaft-require-component/index.js", "segmentio-facade/deps/require-component/index.js");
 
 require.alias("segmentio-isodate-traverse/index.js", "segmentio-facade/deps/isodate-traverse/index.js");
@@ -14804,47 +15028,47 @@ require.alias("ianstormtaylor-to-no-case/index.js", "ianstormtaylor-to-capital-c
 require.alias("ianstormtaylor-case/lib/index.js", "ianstormtaylor-case/index.js");
 require.alias("segmentio-obj-case/index.js", "segmentio-obj-case/index.js");
 require.alias("segmentio-facade/lib/index.js", "segmentio-facade/index.js");
-require.alias("segmentio-global-queue/index.js", "segmentio-analytics.js-integrations/deps/global-queue/index.js");
+require.alias("segmentio-global-queue/index.js", "rollbar-analytics.js-integrations/deps/global-queue/index.js");
 
-require.alias("segmentio-is-email/index.js", "segmentio-analytics.js-integrations/deps/is-email/index.js");
+require.alias("segmentio-is-email/index.js", "rollbar-analytics.js-integrations/deps/is-email/index.js");
 
-require.alias("segmentio-load-date/index.js", "segmentio-analytics.js-integrations/deps/load-date/index.js");
+require.alias("segmentio-load-date/index.js", "rollbar-analytics.js-integrations/deps/load-date/index.js");
 
-require.alias("segmentio-load-script/index.js", "segmentio-analytics.js-integrations/deps/load-script/index.js");
+require.alias("segmentio-load-script/index.js", "rollbar-analytics.js-integrations/deps/load-script/index.js");
 require.alias("component-type/index.js", "segmentio-load-script/deps/type/index.js");
 
-require.alias("segmentio-script-onload/index.js", "segmentio-analytics.js-integrations/deps/script-onload/index.js");
-require.alias("segmentio-script-onload/index.js", "segmentio-analytics.js-integrations/deps/script-onload/index.js");
+require.alias("segmentio-script-onload/index.js", "rollbar-analytics.js-integrations/deps/script-onload/index.js");
+require.alias("segmentio-script-onload/index.js", "rollbar-analytics.js-integrations/deps/script-onload/index.js");
 require.alias("segmentio-script-onload/index.js", "segmentio-script-onload/index.js");
-require.alias("segmentio-on-body/index.js", "segmentio-analytics.js-integrations/deps/on-body/index.js");
+require.alias("segmentio-on-body/index.js", "rollbar-analytics.js-integrations/deps/on-body/index.js");
 require.alias("component-each/index.js", "segmentio-on-body/deps/each/index.js");
 require.alias("component-type/index.js", "component-each/deps/type/index.js");
 
-require.alias("segmentio-on-error/index.js", "segmentio-analytics.js-integrations/deps/on-error/index.js");
+require.alias("segmentio-on-error/index.js", "rollbar-analytics.js-integrations/deps/on-error/index.js");
 
-require.alias("segmentio-to-iso-string/index.js", "segmentio-analytics.js-integrations/deps/to-iso-string/index.js");
+require.alias("segmentio-to-iso-string/index.js", "rollbar-analytics.js-integrations/deps/to-iso-string/index.js");
 
-require.alias("segmentio-to-unix-timestamp/index.js", "segmentio-analytics.js-integrations/deps/to-unix-timestamp/index.js");
+require.alias("segmentio-to-unix-timestamp/index.js", "rollbar-analytics.js-integrations/deps/to-unix-timestamp/index.js");
 
-require.alias("segmentio-use-https/index.js", "segmentio-analytics.js-integrations/deps/use-https/index.js");
+require.alias("segmentio-use-https/index.js", "rollbar-analytics.js-integrations/deps/use-https/index.js");
 
-require.alias("segmentio-when/index.js", "segmentio-analytics.js-integrations/deps/when/index.js");
+require.alias("segmentio-when/index.js", "rollbar-analytics.js-integrations/deps/when/index.js");
 require.alias("ianstormtaylor-callback/index.js", "segmentio-when/deps/callback/index.js");
 require.alias("timoxley-next-tick/index.js", "ianstormtaylor-callback/deps/next-tick/index.js");
 
-require.alias("timoxley-next-tick/index.js", "segmentio-analytics.js-integrations/deps/next-tick/index.js");
+require.alias("timoxley-next-tick/index.js", "rollbar-analytics.js-integrations/deps/next-tick/index.js");
 
-require.alias("yields-slug/index.js", "segmentio-analytics.js-integrations/deps/slug/index.js");
+require.alias("yields-slug/index.js", "rollbar-analytics.js-integrations/deps/slug/index.js");
 
-require.alias("visionmedia-batch/index.js", "segmentio-analytics.js-integrations/deps/batch/index.js");
+require.alias("visionmedia-batch/index.js", "rollbar-analytics.js-integrations/deps/batch/index.js");
 require.alias("component-emitter/index.js", "visionmedia-batch/deps/emitter/index.js");
 require.alias("component-indexof/index.js", "component-emitter/deps/indexof/index.js");
 
-require.alias("visionmedia-debug/index.js", "segmentio-analytics.js-integrations/deps/debug/index.js");
-require.alias("visionmedia-debug/debug.js", "segmentio-analytics.js-integrations/deps/debug/debug.js");
+require.alias("visionmedia-debug/index.js", "rollbar-analytics.js-integrations/deps/debug/index.js");
+require.alias("visionmedia-debug/debug.js", "rollbar-analytics.js-integrations/deps/debug/debug.js");
 
-require.alias("segmentio-load-pixel/index.js", "segmentio-analytics.js-integrations/deps/load-pixel/index.js");
-require.alias("segmentio-load-pixel/index.js", "segmentio-analytics.js-integrations/deps/load-pixel/index.js");
+require.alias("segmentio-load-pixel/index.js", "rollbar-analytics.js-integrations/deps/load-pixel/index.js");
+require.alias("segmentio-load-pixel/index.js", "rollbar-analytics.js-integrations/deps/load-pixel/index.js");
 require.alias("component-querystring/index.js", "segmentio-load-pixel/deps/querystring/index.js");
 require.alias("component-trim/index.js", "component-querystring/deps/trim/index.js");
 
@@ -14852,8 +15076,8 @@ require.alias("segmentio-substitute/index.js", "segmentio-load-pixel/deps/substi
 require.alias("segmentio-substitute/index.js", "segmentio-load-pixel/deps/substitute/index.js");
 require.alias("segmentio-substitute/index.js", "segmentio-substitute/index.js");
 require.alias("segmentio-load-pixel/index.js", "segmentio-load-pixel/index.js");
-require.alias("segmentio-replace-document-write/index.js", "segmentio-analytics.js-integrations/deps/replace-document-write/index.js");
-require.alias("segmentio-replace-document-write/index.js", "segmentio-analytics.js-integrations/deps/replace-document-write/index.js");
+require.alias("segmentio-replace-document-write/index.js", "rollbar-analytics.js-integrations/deps/replace-document-write/index.js");
+require.alias("segmentio-replace-document-write/index.js", "rollbar-analytics.js-integrations/deps/replace-document-write/index.js");
 require.alias("component-domify/index.js", "segmentio-replace-document-write/deps/domify/index.js");
 
 require.alias("segmentio-replace-document-write/index.js", "segmentio-replace-document-write/index.js");
